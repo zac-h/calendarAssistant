@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#764ba2">
+    <title>Text to Google Calendar Event Creator</title>
+    <script src="https://accounts.google.com/gsi/client"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .auth-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .input-section {
+            margin-bottom: 30px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        textarea, input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        textarea:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        
+        .button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .button:active {
+            transform: translateY(0);
+        }
+        
+        .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .parsed-event {
+            background: rgba(118, 75, 162, 0.1);
+            border: 2px solid #764ba2;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .parsed-event h3 {
+            color: #764ba2;
+            margin-bottom: 10px;
+        }
+        
+        .event-details {
+            display: grid;
+            gap: 10px;
+        }
+        
+        .event-detail {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 8px;
+        }
+        
+        .event-detail strong {
+            min-width: 80px;
+            color: #555;
+        }
+        
+        .examples {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .examples h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .example {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-family: 'Courier New', monospace;
+            border-left: 3px solid #667eea;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .example:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+        
+        .status.success {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+            border: 1px solid #28a745;
+        }
+        
+        .status.error {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            border: 1px solid #dc3545;
+        }
+        
+        .status.info {
+            background: rgba(23, 162, 184, 0.1);
+            color: #17a2b8;
+            border: 1px solid #17a2b8;
+        }
+
+        #google-signin-btn {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Calendar Event Creator</h1>
+        
+        <div class="auth-section">
+            <h3>Google Calendar Integration</h3>
+            <p>Connect your Google Calendar to create events automatically.</p>
+            <button id="authBtn" class="button">Connect Google Calendar</button>
+            <div id="google-signin-btn"></div>
+            <div id="authStatus" class="status info">
+                Set up your API credentials first (see instructions below)
+            </div>
+        </div>
+        
+        <div class="examples">
+            <h3>Example Text Formats</h3>
+            <p>Click any example to try it:</p>
+            <div class="example" onclick="fillExample(this)">Meeting with John tomorrow at 2pm for 1 hour about project review</div>
+            <div class="example" onclick="fillExample(this)">Dinner with Sarah on Friday 7:30pm at Italian restaurant</div>
+            <div class="example" onclick="fillExample(this)">Team standup every Monday 9am to 9:30am</div>
+            <div class="example" onclick="fillExample(this)">Doctor appointment on Dec 15 2025 at 3:15pm</div>
+            <div class="example" onclick="fillExample(this)">Birthday party this Saturday 6pm-10pm at my house</div>
+        </div>
+        
+        <div class="input-section">
+            <label for="eventText">Describe your event in natural language:</label>
+            <textarea 
+                id="eventText" 
+                placeholder="e.g., 'Meeting with team tomorrow at 2pm for 1 hour to discuss quarterly goals'"
+            ></textarea>
+        </div>
+        
+        <button onclick="parseEvent()" class="button">Parse Event</button>
+        <button onclick="createCalendarEvent()" class="button" id="createBtn" disabled>Create Calendar Event</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // CONFIGURATION: Replace these with your actual Google API credentials
+        const API_KEY = 'AIzaSyCsn_OSQyKMzNdqH-zUZ_lKSnADTG4zNZA';
+        const CLIENT_ID = '937145546145-gun4vpve3e6d7n4basokub4ju3e5oki0.apps.googleusercontent.com';
+        const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
+        const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+
+        let isAuthenticated = false;
+        let parsedEventData = null;
+        let accessToken = null;
+
+        // Initialize when page loads
+        window.onload = function() {
+            setTimeout(function() {
+                if (API_KEY === 'YOUR_API_KEY_HERE' || CLIENT_ID === 'YOUR_CLIENT_ID_HERE') {
+                    showStatus('Please set up your API credentials first (see setup guide)', 'error');
+                    document.getElementById('authBtn').disabled = true;
+                    return;
+                }
+                
+                initializeApp();
+            }, 100);
+        };
+
+        function initializeApp() {
+            // Initialize Google API client
+            gapi.load('client', initializeGapiClient);
+            
+            // Initialize Google Identity Services
+            google.accounts.id.initialize({
+                client_id: CLIENT_ID,
+                callback: handleCredentialResponse
+            });
+
+            // Set up the custom sign-in button
+            setupCustomSignIn();
+        }
+
+        function setupCustomSignIn() {
+            const authBtn = document.getElementById('authBtn');
+            authBtn.onclick = function() {
+                if (isAuthenticated) {
+                    signOut();
+                } else {
+                    // Trigger Google Sign-In
+                    google.accounts.oauth2.initTokenClient({
+                        client_id: CLIENT_ID,
+                        scope: SCOPES,
+                        callback: handleAuthResponse,
+                    }).requestAccessToken();
+                }
+            };
+        }
+
+        async function initializeGapiClient() {
+            try {
+                await gapi.client.init({
+                    apiKey: API_KEY,
+                    discoveryDocs: DISCOVERY_DOCS,
+                });
+                
+                showStatus('Google API loaded successfully', 'success');
+                
+            } catch (error) {
+                console.error('Error initializing Google API:', error);
+                
+                let errorMessage = 'Error loading Google API: ';
+                if (error.error === 'invalid_client') {
+                    errorMessage += 'Invalid Client ID. Check your OAuth settings.';
+                } else if (error.error === 'access_denied') {
+                    errorMessage += 'Access denied. Check your OAuth consent screen settings.';
+                } else {
+                    errorMessage += error.message || 'Unknown error';
+                }
+                
+                showStatus(errorMessage, 'error');
+            }
+        }
+
+        function handleCredentialResponse(response) {
+            // This handles ID token response (for user info)
+            console.log('ID Token received');
+        }
+
+        function handleAuthResponse(response) {
+            if (response.error) {
+                showStatus('Authentication failed: ' + response.error, 'error');
+                return;
+            }
+            
+            accessToken = response.access_token;
+            isAuthenticated = true;
+            updateAuthUI();
+            showStatus('Successfully connected to Google Calendar!', 'success');
+        }
+
+        function updateAuthUI() {
+            const authBtn = document.getElementById('authBtn');
+            
+            if (isAuthenticated) {
+                authBtn.textContent = 'Connected - Sign Out';
+                authBtn.className = 'button success';
+            } else {
+                authBtn.textContent = 'Connect Google Calendar';
+                authBtn.className = 'button';
+            }
+        }
+
+        function signOut() {
+            // Revoke the access token
+            if (accessToken) {
+                google.accounts.oauth2.revoke(accessToken, () => {
+                    console.log('Access token revoked');
+                });
+            }
+            
+            accessToken = null;
+            isAuthenticated = false;
+            updateAuthUI();
+            showStatus('Signed out successfully', 'info');
+        }
+
+        function fillExample(element) {
+            document.getElementById('eventText').value = element.textContent;
+        }
+
+        function parseEvent() {
+            const text = document.getElementById('eventText').value.trim();
+            if (!text) {
+                showStatus('Please enter some text to parse', 'error');
+                return;
+            }
+
+            try {
+                parsedEventData = parseNaturalLanguageEvent(text);
+                displayParsedEvent(parsedEventData);
+                document.getElementById('createBtn').disabled = false;
+                showStatus('Event successfully parsed! Review details below.', 'success');
+            } catch (error) {
+                showStatus('Error parsing event: ' + error.message, 'error');
+                document.getElementById('createBtn').disabled = true;
+            }
+        }
+
+        function parseNaturalLanguageEvent(text) {
+            const event = {
+                summary: '',
+                startDateTime: null,
+                endDateTime: null,
+                description: '',
+                location: ''
+            };
+
+            // Extract title/summary (everything before time indicators)
+            let titleMatch = text.match(/^([^0-9]*?)(?=\s*(?:at|on|tomorrow|today|this|next|\d))/i);
+            if (titleMatch) {
+                event.summary = titleMatch[1].trim().replace(/^(meeting with|dinner with|appointment with|lunch with)/i, (match) => {
+                    return match.charAt(0).toUpperCase() + match.slice(1);
+                });
+            } else {
+                event.summary = text.split(' ').slice(0, 5).join(' ');
+            }
+
+            // Extract time
+            const timePattern = /(\d{1,2}):?(\d{2})?\s*(am|pm)/gi;
+            const timeMatches = [...text.matchAll(timePattern)];
+            
+            if (timeMatches.length > 0) {
+                const startTime = timeMatches[0];
+                let hours = parseInt(startTime[1]);
+                const minutes = parseInt(startTime[2]) || 0;
+                const ampm = startTime[3].toLowerCase();
+                
+                if (ampm === 'pm' && hours !== 12) hours += 12;
+                if (ampm === 'am' && hours === 12) hours = 0;
+                
+                // Extract date
+                let targetDate = new Date();
+                
+                // Check for relative dates
+                if (text.toLowerCase().includes('tomorrow')) {
+                    targetDate.setDate(targetDate.getDate() + 1);
+                } else if (text.toLowerCase().includes('today')) {
+                    // Keep today's date
+                } else if (text.match(/this\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i)) {
+                    const dayName = text.match(/this\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i)[1];
+                    const dayIndex = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(dayName.toLowerCase());
+                    const today = new Date().getDay();
+                    const daysUntil = (dayIndex - today + 7) % 7;
+                    if (daysUntil === 0 && !text.toLowerCase().includes('today')) {
+                        targetDate.setDate(targetDate.getDate() + 7); // Next week
+                    } else {
+                        targetDate.setDate(targetDate.getDate() + daysUntil);
+                    }
+                } else if (text.match(/next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i)) {
+                    const dayName = text.match(/next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i)[1];
+                    const dayIndex = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(dayName.toLowerCase());
+                    const today = new Date().getDay();
+                    const daysUntil = (dayIndex - today + 7) % 7 || 7;
+                    targetDate.setDate(targetDate.getDate() + daysUntil);
+                } else {
+                    // Look for specific dates
+                    const dateMatch = text.match(/(?:on\s+)?(?:dec|december|jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|september|oct|october|nov|november)\s+\d{1,2}(?:\s+\d{4})?/i);
+                    if (dateMatch) {
+                        targetDate = new Date(dateMatch[0]);
+                    }
+                }
+                
+                event.startDateTime = new Date(targetDate);
+                event.startDateTime.setHours(hours, minutes, 0, 0);
+                
+                // Calculate end time
+                let duration = 60; // Default 1 hour
+                
+                // Look for duration indicators
+                const durationMatch = text.match(/(?:for\s+)?(\d+)\s*(hour|hr|minute|min)/i);
+                if (durationMatch) {
+                    const value = parseInt(durationMatch[1]);
+                    const unit = durationMatch[2].toLowerCase();
+                    if (unit.includes('hour') || unit.includes('hr')) {
+                        duration = value * 60;
+                    } else {
+                        duration = value;
+                    }
+                }
+                
+                // Look for end time
+                if (timeMatches.length > 1) {
+                    const endTime = timeMatches[1];
+                    let endHours = parseInt(endTime[1]);
+                    const endMinutes = parseInt(endTime[2]) || 0;
+                    const endAmpm = endTime[3].toLowerCase();
+                    
+                    if (endAmpm === 'pm' && endHours !== 12) endHours += 12;
+                    if (endAmpm === 'am' && endHours === 12) endHours = 0;
+                    
+                    event.endDateTime = new Date(targetDate);
+                    event.endDateTime.setHours(endHours, endMinutes, 0, 0);
+                } else {
+                    event.endDateTime = new Date(event.startDateTime.getTime() + duration * 60000);
+                }
+            } else {
+                throw new Error('Could not find a valid time in the text');
+            }
+
+            // Extract location
+            const locationMatch = text.match(/(?:at|@)\s+([^,\n]+?)(?:\s+(?:about|for|to discuss|regarding)|$)/i);
+            if (locationMatch) {
+                event.location = locationMatch[1].trim();
+            }
+
+            // Extract description from "about" or "regarding" sections
+            const descriptionMatch = text.match(/(?:about|regarding|to discuss|for)\s+(.+?)$/i);
+            if (descriptionMatch) {
+                event.description = descriptionMatch[1].trim();
+            }
+
+            return event;
+        }
+
+        function displayParsedEvent(event) {
+            const resultsDiv = document.getElementById('results');
+            
+            const formatDateTime = (date) => {
+                return date.toLocaleString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            };
+
+            resultsDiv.innerHTML = `
+                <div class="parsed-event">
+                    <h3>Parsed Event Details</h3>
+                    <div class="event-details">
+                        <div class="event-detail">
+                            <strong>Title:</strong> <span>${event.summary || 'Untitled Event'}</span>
+                        </div>
+                        <div class="event-detail">
+                            <strong>Start:</strong> <span>${formatDateTime(event.startDateTime)}</span>
+                        </div>
+                        <div class="event-detail">
+                            <strong>End:</strong> <span>${formatDateTime(event.endDateTime)}</span>
+                        </div>
+                        ${event.location ? `
+                        <div class="event-detail">
+                            <strong>Location:</strong> <span>${event.location}</span>
+                        </div>` : ''}
+                        ${event.description ? `
+                        <div class="event-detail">
+                            <strong>About:</strong> <span>${event.description}</span>
+                        </div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function createCalendarEvent() {
+            if (!parsedEventData) {
+                showStatus('Please parse an event first', 'error');
+                return;
+            }
+
+            if (!isAuthenticated || !accessToken) {
+                showStatus('Please connect to Google Calendar first', 'error');
+                return;
+            }
+
+            showStatus('Creating calendar event...', 'info');
+            
+            try {
+                const event = {
+                    summary: parsedEventData.summary,
+                    start: {
+                        dateTime: parsedEventData.startDateTime.toISOString(),
+                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                    },
+                    end: {
+                        dateTime: parsedEventData.endDateTime.toISOString(),
+                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                    },
+                    description: parsedEventData.description || '',
+                    location: parsedEventData.location || ''
+                };
+
+                const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(event)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                showStatus('Event created successfully!', 'success');
+                
+                // Add link to view the event
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML += `
+                    <div style="margin-top: 20px; text-align: center;">
+                        <a href="${result.htmlLink}" target="_blank" class="button">
+                            View Event in Calendar
+                        </a>
+                        <p style="margin-top: 10px; color: #666; font-size: 14px;">
+                            Event ID: ${result.id}
+                        </p>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Error creating event:', error);
+                showStatus('Failed to create event: ' + error.message, 'error');
+                
+                // Fallback: provide Google Calendar URL
+                const googleCalendarUrl = createGoogleCalendarUrl(parsedEventData);
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML += `
+                    <div style="margin-top: 20px; text-align: center;">
+                        <a href="${googleCalendarUrl}" target="_blank" class="button">
+                            Create Manually in Google Calendar
+                        </a>
+                    </div>
+                `;
+            }
+        }
+
+        function createGoogleCalendarUrl(event) {
+            const formatGoogleDate = (date) => {
+                return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            };
+
+            const params = new URLSearchParams({
+                action: 'TEMPLATE',
+                text: event.summary,
+                dates: `${formatGoogleDate(event.startDateTime)}/${formatGoogleDate(event.endDateTime)}`,
+                details: event.description || '',
+                location: event.location || ''
+            });
+
+            return `https://calendar.google.com/calendar/render?${params.toString()}`;
+        }
+
+        function showStatus(message, type) {
+            const existingStatus = document.querySelector('.status');
+            if (existingStatus && !existingStatus.id) {
+                existingStatus.remove();
+            }
+
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            
+            document.querySelector('.container').appendChild(statusDiv);
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    statusDiv.style.opacity = '0';
+                    setTimeout(() => statusDiv.remove(), 300);
+                }, 4000);
+            }
+        }
+    </script>
+    <script>
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.register("service-worker.js")
+            .then(() => console.log("Service Worker registered"))
+            .catch(err => console.error("Service Worker registration failed:", err));
+        }
+      </script>
+</body>
+</html>

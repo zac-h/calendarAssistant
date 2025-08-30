@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OAuth Test</title>
+</head>
+<body>
+    <h1>Google OAuth Test</h1>
+    <div id="status">Testing...</div>
+    <br>
+    <button id="signInBtn" disabled>Sign In</button>
+    <button id="signOutBtn" disabled>Sign Out</button>
+
+    <script>
+        // Your credentials
+        const CLIENT_ID = '937145546145-gun4vpve3e6d7n4basokub4ju3e5ok10.apps.googleusercontent.com';
+        
+        function updateStatus(message, color = 'black') {
+            document.getElementById('status').innerHTML = `<span style="color: ${color}">${message}</span>`;
+        }
+
+        // Load Google API
+        const script = document.createElement('script');
+        script.src = 'https://apis.google.com/js/api.js';
+        script.onload = initGoogleAuth;
+        document.head.appendChild(script);
+
+        function initGoogleAuth() {
+            updateStatus('Loading Google Auth...', 'blue');
+            
+            gapi.load('auth2', function() {
+                gapi.auth2.init({
+                    client_id: CLIENT_ID
+                }).then(function(authInstance) {
+                    updateStatus('Google Auth initialized successfully!', 'green');
+                    
+                    document.getElementById('signInBtn').disabled = false;
+                    document.getElementById('signOutBtn').disabled = false;
+                    
+                    // Check if already signed in
+                    if (authInstance.isSignedIn.get()) {
+                        const user = authInstance.currentUser.get();
+                        const profile = user.getBasicProfile();
+                        updateStatus(`Already signed in as: ${profile.getName()}`, 'green');
+                    }
+                    
+                }).catch(function(error) {
+                    updateStatus('Auth Error: ' + JSON.stringify(error), 'red');
+                    console.error('Auth initialization error:', error);
+                });
+            });
+        }
+
+        document.getElementById('signInBtn').onclick = function() {
+            const authInstance = gapi.auth2.getAuthInstance();
+            authInstance.signIn().then(function(user) {
+                const profile = user.getBasicProfile();
+                updateStatus(`Signed in as: ${profile.getName()}`, 'green');
+            }).catch(function(error) {
+                updateStatus('Sign-in error: ' + JSON.stringify(error), 'red');
+                console.error('Sign-in error:', error);
+            });
+        };
+
+        document.getElementById('signOutBtn').onclick = function() {
+            const authInstance = gapi.auth2.getAuthInstance();
+            authInstance.signOut().then(function() {
+                updateStatus('Signed out successfully', 'blue');
+            });
+        };
+    </script>
+</body>
+</html>
